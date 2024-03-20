@@ -69,7 +69,7 @@ def value_iteration(env, gamma=0.9, max_iterations=10**6, eps=10**-3):
             v_prev = V[s]  # Store the current value of V(s) to compare after update
             # Update V(s) based on the Bellman optimality equation
             # s_ represents the next state s', and a represents each possible action
-            V[s] = max([sum([P[s, a, s_] * (R[s, a, s_] + gamma * V[s_]) for s_ in range(num_spaces)]) for a in range(num_actions)])
+            V[s] = max([sum([(R[s, a, s_] + gamma * P[s, a, s_] * V[s_]) for s_ in range(num_spaces)]) for a in range(num_actions)])
             # Calculate the maximum difference in V(s) for this iteration to check for convergence
             delta = max(delta, abs(v_prev - V[s]))
         if delta < eps:  # Check if the maximum change in V(s) is below a small threshold, indicating convergence
@@ -80,7 +80,7 @@ def value_iteration(env, gamma=0.9, max_iterations=10**6, eps=10**-3):
     policy = np.zeros(num_spaces, dtype=int)
     for s in range(num_spaces):
         # Update the policy for each state s by choosing the action that maximizes the expected future rewards
-        policy[s] = np.argmax([sum([P[s, a, s_] * (R[s, a, s_] + gamma * V[s_]) for s_ in range(num_spaces)]) for a in range(num_actions)])
+        policy[s] = np.argmax([sum([(R[s, a, s_] + gamma * P[s, a, s_] * V[s_]) for s_ in range(num_spaces)]) for a in range(num_actions)])
     #############################
 
 
@@ -132,7 +132,7 @@ def policy_iteration(env, gamma=0.9, max_iterations=10**6, eps=10**-3):
             delta = 0  # Initialize delta for convergence check
             for s in range(num_spaces):
                 v = V[s]
-                V[s] = sum([P[s, policy[s], s_] * (R[s, policy[s], s_] + gamma * V[s_]) for s_ in range(num_spaces)])
+                V[s] = sum([(R[s, policy[s], s_] + gamma * P[s, policy[s], s_] * V[s_]) for s_ in range(num_spaces)])
                 delta = max(delta, abs(v - V[s]))  # Update delta with the maximum change in value
             if delta < eps:  # Check for convergence
                 break
@@ -149,7 +149,7 @@ def policy_iteration(env, gamma=0.9, max_iterations=10**6, eps=10**-3):
         for s in range(num_spaces):
             old_action = policy[s]
             # Find the best action by maximizing the expected value
-            policy[s] = np.argmax([sum([P[s, a, s_] * (R[s, a, s_] + gamma * V[s_]) for s_ in range(num_spaces)]) for a in range(num_actions)])
+            policy[s] = np.argmax([sum([(R[s, a, s_] + gamma * P[s, a, s_] * V[s_]) for s_ in range(num_spaces)]) for a in range(num_actions)])
             if old_action != policy[s]:  # Check if the action has changed
                 policy_stable = False  # Policy is not stable if any action has changed
 
@@ -157,7 +157,6 @@ def policy_iteration(env, gamma=0.9, max_iterations=10**6, eps=10**-3):
             print(f"Policy stabilized after {iteration+1} iterations with Last Delta = {last_delta}.")
             break  # Exit the loop since we've found an optimal policy
 
-    return policy
     #############################
 
 
