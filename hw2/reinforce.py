@@ -42,9 +42,13 @@ class Policy(nn.Module):
         self.double()
         
         ########## YOUR CODE HERE (5~10 lines) ##########
-        self.fc1 = nn.Linear(self.observation_dim, self.hidden_size)
-        self.action_head = nn.Linear(self.hidden_size, self.action_dim)
-        self.value_head = nn.Linear(self.hidden_size, 1)
+        self.shared_layer = nn.Linear(self.observation_dim, self.hidden_size)
+        self.action_layer = nn.Linear(self.hidden_size, self.action_dim)
+        self.value_layer = nn.Linear(self.hidden_size, 1)
+        # Initialize weights
+        self.shared_layer.weight.data.normal_(0, 0.1)
+        self.action_layer.weight.data.normal_(0, 0.1)
+        self.value_layer.weight.data.normal_(0, 0.1)
 
         
         ########## END OF YOUR CODE ##########
@@ -63,9 +67,9 @@ class Policy(nn.Module):
         """
         
         ########## YOUR CODE HERE (3~5 lines) ##########
-        x = F.relu(self.fc1(state))
-        action_prob = F.softmax(self.action_head(x), dim=-1)
-        state_value = self.value_head(x)
+        x = F.relu(self.shared_layer(state))
+        action_prob = F.softmax(self.action_layer(x), dim=-1)
+        state_value = self.value_layer(x)
 
         ########## END OF YOUR CODE ##########
 
@@ -82,11 +86,10 @@ class Policy(nn.Module):
         """
         
         ########## YOUR CODE HERE (3~5 lines) ##########
-        state = torch.from_numpy(state).float().unsqueeze(0)
-        probs, state_value = self(state)
+        state = torch.from_numpy(state).float()
+        probs, state_value = self.forward(state)
         m = Categorical(probs)
         action = m.sample()
-        self.saved_actions.append(SavedAction(m.log_prob(action), state_value))
 
         ########## END OF YOUR CODE ##########
         
@@ -113,19 +116,22 @@ class Policy(nn.Module):
         returns = []
 
         ########## YOUR CODE HERE (8-15 lines) ##########
+        eps = 1e-8
+        # Rewards-to-go
         for r in self.rewards[::-1]:
             R = r + gamma * R
             returns.insert(0, R)
         returns = torch.tensor(returns)
-        returns = (returns - returns.mean()) / (returns.std() + 1e-6)
+        returns = (returns - returns.mean()) / (returns.std() + eps)  # Normalizing the returns
 
-        # Calculate policy and value loss
-        for (log_prob, value), R in zip(self.saved_actions, returns):
+        # Calculate losses
+        for (log_prob, value), R in zip(saved_actions, returns):
             advantage = R - value.item()
-            policy_losses.append(-log_prob * advantage)
+            policy_losses.append(-log_prob * advantage)  # Negative for gradient ascent
             value_losses.append(F.smooth_l1_loss(value, torch.tensor([R])))
 
         loss = torch.stack(policy_losses).sum() + torch.stack(value_losses).sum()
+
 
         ########## END OF YOUR CODE ##########
         
@@ -190,7 +196,7 @@ def train(lr=0.01):
         # For each episode, only run 9999 steps to avoid entering infinite loop during the learning process
         
         ########## YOUR CODE HERE (10-15 lines) ##########
-        for t in range(10000):  # Don't infinite loop while learning
+        for t in range(10000):  # Restrict the number of steps per episode
             action = model.select_action(state)
             state, reward, done, _ = env.step(action)
             model.rewards.append(reward)
