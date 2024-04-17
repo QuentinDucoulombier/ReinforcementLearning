@@ -42,8 +42,10 @@ class Policy(nn.Module):
         self.double()
         
         ########## YOUR CODE HERE (5~10 lines) ##########
+        self.fc1 = nn.Linear(self.observation_dim, self.hidden_size)
+        self.action_head = nn.Linear(self.hidden_size, self.action_dim)
+        self.value_head = nn.Linear(self.hidden_size, 1)
 
-        
         
         ########## END OF YOUR CODE ##########
         
@@ -61,7 +63,9 @@ class Policy(nn.Module):
         """
         
         ########## YOUR CODE HERE (3~5 lines) ##########
-
+        x = F.relu(self.fc1(state))
+        action_prob = F.softmax(self.action_head(x), dim=-1)
+        state_value = self.value_head(x)
 
         ########## END OF YOUR CODE ##########
 
@@ -78,7 +82,11 @@ class Policy(nn.Module):
         """
         
         ########## YOUR CODE HERE (3~5 lines) ##########
-
+        state = torch.from_numpy(state).float().unsqueeze(0)
+        probs, state_value = self(state)
+        m = Categorical(probs)
+        action = m.sample()
+        self.saved_actions.append(SavedAction(m.log_prob(action), state_value))
 
         ########## END OF YOUR CODE ##########
         
@@ -105,7 +113,19 @@ class Policy(nn.Module):
         returns = []
 
         ########## YOUR CODE HERE (8-15 lines) ##########
+        for r in self.rewards[::-1]:
+            R = r + gamma * R
+            returns.insert(0, R)
+        returns = torch.tensor(returns)
+        returns = (returns - returns.mean()) / (returns.std() + 1e-6)
 
+        # Calculate policy and value loss
+        for (log_prob, value), R in zip(self.saved_actions, returns):
+            advantage = R - value.item()
+            policy_losses.append(-log_prob * advantage)
+            value_losses.append(F.smooth_l1_loss(value, torch.tensor([R])))
+
+        loss = torch.stack(policy_losses).sum() + torch.stack(value_losses).sum()
 
         ########## END OF YOUR CODE ##########
         
@@ -116,25 +136,25 @@ class Policy(nn.Module):
         del self.rewards[:]
         del self.saved_actions[:]
 
-class GAE:
-    def __init__(self, gamma, lambda_, num_steps):
-        self.gamma = gamma
-        self.lambda_ = lambda_
-        self.num_steps = num_steps          # set num_steps = None to adapt full batch
+# class GAE:
+#     def __init__(self, gamma, lambda_, num_steps):
+#         self.gamma = gamma
+#         self.lambda_ = lambda_
+#         self.num_steps = num_steps          # set num_steps = None to adapt full batch
 
-    def __call__(self, rewards, values, done):
-    """
-        Implement Generalized Advantage Estimation (GAE) for your value prediction
-        TODO (1): Pass correct corresponding inputs (rewards, values, and done) into the function arguments
-        TODO (2): Calculate the Generalized Advantage Estimation and return the obtained value
-    """
+#     def __call__(self, rewards, values, done):
+#     """
+#         Implement Generalized Advantage Estimation (GAE) for your value prediction
+#         TODO (1): Pass correct corresponding inputs (rewards, values, and done) into the function arguments
+#         TODO (2): Calculate the Generalized Advantage Estimation and return the obtained value
+#     """
 
-        ########## YOUR CODE HERE (8-15 lines) ##########
+#         ########## YOUR CODE HERE (8-15 lines) ##########
 
 
 
         
-        ########## END OF YOUR CODE ##########
+#         ########## END OF YOUR CODE ##########
 
 def train(lr=0.01):
     """
@@ -170,7 +190,19 @@ def train(lr=0.01):
         # For each episode, only run 9999 steps to avoid entering infinite loop during the learning process
         
         ########## YOUR CODE HERE (10-15 lines) ##########
-        
+        for t in range(10000):  # Don't infinite loop while learning
+            action = model.select_action(state)
+            state, reward, done, _ = env.step(action)
+            model.rewards.append(reward)
+            ep_reward += reward
+            if done:
+                break
+
+        optimizer.zero_grad()
+        loss = model.calculate_loss()
+        loss.backward()
+        optimizer.step()
+        model.clear_memory()
         
         ########## END OF YOUR CODE ##########
             
@@ -180,7 +212,9 @@ def train(lr=0.01):
 
         #Try to use Tensorboard to record the behavior of your implementation 
         ########## YOUR CODE HERE (4-5 lines) ##########
-
+        writer.add_scalar('Training/Loss', loss.item(), i_episode)
+        writer.add_scalar('Training/Reward', ep_reward, i_episode)
+        writer.add_scalar('Training/EWMA_Reward', ewma_reward, i_episode)
         ########## END OF YOUR CODE ##########
 
         # check if we have "solved" the cart pole problem, use 120 as the threshold in LunarLander-v2
