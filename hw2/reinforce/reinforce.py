@@ -45,12 +45,7 @@ class Policy(nn.Module):
         self.shared_layer = nn.Linear(self.observation_dim, self.hidden_size)
         self.action_layer = nn.Linear(self.hidden_size, self.action_dim)
         self.value_layer = nn.Linear(self.hidden_size, 1)
-        # Initialize weights
-        self.shared_layer.weight.data.normal_(0, 0.1)
-        self.action_layer.weight.data.normal_(0, 0.1)
-        self.value_layer.weight.data.normal_(0, 0.1)
 
-        
         ########## END OF YOUR CODE ##########
         
         # action & reward memory
@@ -116,13 +111,11 @@ class Policy(nn.Module):
         returns = []
 
         ########## YOUR CODE HERE (8-15 lines) ##########
-        eps = 1e-8
         # Rewards-to-go
         for r in self.rewards[::-1]:
             R = r + gamma * R
             returns.insert(0, R)
         returns = torch.tensor(returns)
-        returns = (returns - returns.mean()) / (returns.std() + eps)  # Normalizing the returns
 
         # Calculate losses
         for (log_prob, value), R in zip(saved_actions, returns):
