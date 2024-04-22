@@ -172,7 +172,7 @@ def train(lr=0.01, gamma=0.999, lambda_=0.95):
         writer.add_scalar('Training/EWMA_Reward', ewma_reward, i_episode)
 
         # Check if training goal is achieved
-        if ewma_reward > 120:
+        if ewma_reward > 250:
             # Ensure the directory exists for model saving
             if not os.path.isdir("./preTrained"):
                 os.mkdir("./preTrained")
