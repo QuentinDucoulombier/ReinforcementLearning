@@ -186,7 +186,7 @@ class DDPG(object):
         if critic_path is not None: 
             self.critic.load_state_dict(torch.load(critic_path))
 
-def train():    
+def train(env_name):    
     num_episodes = 200
     gamma = 0.995
     tau = 0.002
@@ -242,6 +242,7 @@ def train():
                 break
 
         rewards.append(episode_reward)
+        t = 0
         if i_episode % print_freq == 0:
             state = torch.Tensor([env.reset()])
             episode_reward = 0
@@ -254,19 +255,22 @@ def train():
                 episode_reward += reward
                 next_state = torch.Tensor([next_state])
                 state = next_state
+                t += 1
                 if done:
                     break
 
             rewards.append(episode_reward)
             ewma_reward = 0.05 * episode_reward + (1 - 0.05) * ewma_reward
             ewma_reward_history.append(ewma_reward)           
-            print("Episode: {}, reward: {:.2f}, ewma reward: {:.2f}".format(i_episode, rewards[-1], ewma_reward))
+            ewma_reward_history.append(ewma_reward)           
+            print("Episode: {}, length: {}, reward: {:.2f}, ewma reward: {:.2f}".format(i_episode, t, rewards[-1], ewma_reward))            
             writer.add_scalar('Rewards/ewma_reward', ewma_reward, i_episode)
-    agent.save_model("Pendulum-v1", '.pth')        
+    agent.save_model(env_name, '.pth')        
 
 if __name__ == '__main__':
-    random_seed = 10  
-    env = gym.make('Pendulum-v1')
+    random_seed = 10
+    env_name = 'Pendulum-v1'
+    env = gym.make(env_name)
     env.seed(random_seed)  
     torch.manual_seed(random_seed)  
-    train()
+    train(env_name)
