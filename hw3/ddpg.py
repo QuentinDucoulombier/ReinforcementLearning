@@ -249,9 +249,8 @@ def train(env_name):
             while True:
                 action = agent.select_action(state)
                 next_state, reward, done, _ = env.step(action.numpy()[0])
-                if i_episode % 10 == 0:
+                if i_episode % 50 == 0:
                     env.render()
-                #env.render()
                 episode_reward += reward
                 next_state = torch.Tensor([next_state])
                 state = next_state
@@ -262,14 +261,13 @@ def train(env_name):
             rewards.append(episode_reward)
             ewma_reward = 0.05 * episode_reward + (1 - 0.05) * ewma_reward
             ewma_reward_history.append(ewma_reward)           
-            ewma_reward_history.append(ewma_reward)           
-            print("Episode: {}, length: {}, reward: {:.2f}, ewma reward: {:.2f}".format(i_episode, t, rewards[-1], ewma_reward))            
+            print("Episode: {}, length: {}, reward: {:.2f}, ewma reward: {:.2f}".format(i_episode, t, rewards[-1], ewma_reward))
             writer.add_scalar('Rewards/ewma_reward', ewma_reward, i_episode)
     agent.save_model(env_name, '.pth')        
 
 if __name__ == '__main__':
-    random_seed = 10
     env_name = 'Pendulum-v1'
+    random_seed = 10
     env = gym.make(env_name)
     env.seed(random_seed)  
     torch.manual_seed(random_seed)  
