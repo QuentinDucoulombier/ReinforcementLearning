@@ -187,15 +187,15 @@ class DDPG(object):
             self.critic.load_state_dict(torch.load(critic_path))
 
 def train(env_name):    
-    num_episodes = 200
-    gamma = 0.995
-    tau = 0.002
+    num_episodes = 300
+    gamma = 0.997
+    tau = 0.005
     hidden_size = 128
-    lr_a = 1e-4
-    lr_c = 1e-3
-    noise_scale = 0.3
+    lr_a = 0.001
+    lr_c = 0.001
+    noise_scale = 0.1
     replay_size = 100000
-    batch_size = 128
+    batch_size = 64
     updates_per_step = 1
     print_freq = 1
     ewma_reward = -1100
