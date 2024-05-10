@@ -255,6 +255,10 @@ def train(env_name):
             ewma_reward_history.append(ewma_reward)
             print("Episode: {}, length: {}, reward: {:.2f}, ewma reward: {:.2f}".format(i_episode, t, rewards[-1], ewma_reward))
             writer.add_scalar('Rewards/ewma_reward', ewma_reward, i_episode)
+
+            if ewma_reward > 4000:
+                print("Solved!")
+                break
     agent.save_model(env_name, '.pth')
 
 if __name__ == '__main__':

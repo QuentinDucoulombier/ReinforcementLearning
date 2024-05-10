@@ -195,7 +195,7 @@ def train(env_name):
     lr_c = 0.001
     noise_scale = 0.1
     replay_size = 100000
-    batch_size = 64
+    batch_size = 128
     updates_per_step = 1
     print_freq = 1
     ewma_reward = -1100
@@ -263,6 +263,11 @@ def train(env_name):
             ewma_reward_history.append(ewma_reward)           
             print("Episode: {}, length: {}, reward: {:.2f}, ewma reward: {:.2f}".format(i_episode, t, rewards[-1], ewma_reward))
             writer.add_scalar('Rewards/ewma_reward', ewma_reward, i_episode)
+            
+            if ewma_reward > -200:
+                print("Solved!")
+                break
+
     agent.save_model(env_name, '.pth')        
 
 if __name__ == '__main__':
