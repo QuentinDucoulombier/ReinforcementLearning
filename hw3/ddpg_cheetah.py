@@ -26,9 +26,11 @@ def hard_update(target, source):
     for target_param, param in zip(target.parameters(), source.parameters()):
         target_param.data.copy_(param.data)
 
-Transition = namedtuple('Transition', ('state', 'action', 'mask', 'next_state', 'reward'))
+Transition = namedtuple(
+    'Transition', ('state', 'action', 'mask', 'next_state', 'reward'))
 
 class ReplayMemory(object):
+    
     def __init__(self, capacity):
         self.capacity = capacity
         self.memory = []
@@ -69,37 +71,38 @@ class OUNoise:
 class Actor(nn.Module):
     def __init__(self, hidden_size, num_inputs, action_space):
         super(Actor, self).__init__()
-        num_outputs = action_space.shape[0]
-
+        # Initialize layers of the actor network
         self.fc1 = nn.Linear(num_inputs, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, num_outputs)
-        self.tanh = nn.Tanh()
+        self.fc3 = nn.Linear(hidden_size, action_space.shape[0])
+        self.tanh = nn.Tanh()  # Output layer activation to scale actions
 
     def forward(self, inputs):
-        x = F.relu(self.fc1(inputs))
-        x = F.relu(self.fc2(x))
-        x = self.tanh(self.fc3(x))
+        # Forward pass defines how to compute the output from input data
+        x = F.relu(self.fc1(inputs))  # First layer with ReLU activation
+        x = F.relu(self.fc2(x))       # Second layer with ReLU activation
+        x = self.tanh(self.fc3(x))    # Output layer with tanh to scale the output
         return x
 
 class Critic(nn.Module):
     def __init__(self, hidden_size, num_inputs, action_space):
         super(Critic, self).__init__()
-        num_outputs = action_space.shape[0]
-
-        self.fc1 = nn.Linear(num_inputs + num_outputs, hidden_size)
+        # Initialize layers of the critic network
+        self.fc1 = nn.Linear(num_inputs + action_space.shape[0], hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.fc3 = nn.Linear(hidden_size, 1)
 
     def forward(self, inputs, actions):
-        x = torch.cat([inputs, actions], 1)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        # Forward pass defines how to compute the output from input data
+        x = torch.cat([inputs, actions], 1)  # Concatenate input and action
+        x = F.relu(self.fc1(x))              # First layer processes combined data
+        x = F.relu(self.fc2(x))              # Second layer with ReLU activation
+        x = self.fc3(x)                      # Output layer predicts the Q-value
         return x
 
 class DDPG(object):
     def __init__(self, num_inputs, action_space, gamma=0.99, tau=0.002, hidden_size=128, lr_a=1e-4, lr_c=1e-3):
+        # Initialize DDPG agent components
         self.num_inputs = num_inputs
         self.action_space = action_space
 
@@ -111,9 +114,10 @@ class DDPG(object):
         self.critic_target = Critic(hidden_size, self.num_inputs, self.action_space)
         self.critic_optim = Adam(self.critic.parameters(), lr=lr_c)
 
-        self.gamma = gamma
-        self.tau = tau
+        self.gamma = gamma # Discount factor
+        self.tau = tau # Soft update parameter
 
+        # Initialize target networks with the same weights as the online networks
         hard_update(self.actor_target, self.actor) 
         hard_update(self.critic_target, self.critic)
 
@@ -181,6 +185,7 @@ class DDPG(object):
             self.critic.load_state_dict(torch.load(critic_path))
 
 def train(env_name):
+    # Initialize training parameters
     num_episodes = 400
     gamma = 0.99
     tau = 0.002
@@ -198,6 +203,7 @@ def train(env_name):
     total_numsteps = 0
     updates = 0
     
+    # Initialize environment, agent, noise, and memory
     agent = DDPG(env.observation_space.shape[0], env.action_space, gamma, tau, hidden_size, lr_a, lr_c)
     ounoise = OUNoise(env.action_space.shape[0], scale=0.1)
     memory = ReplayMemory(replay_size)
