@@ -1,443 +1,446 @@
 # A note on Is RLHF More Difficult than Standard RL? A Theoretical Perspective
 
-L'apprentissage par renforcement à partir des feedbacks humains (RLHF) représente une avancée significative en utilisant les préférences humaines comme signal d'apprentissage pour les agents d'IA. Dans cet article de blog, nous explorons les concepts du papier "Is RLHF More Difficult than Standard RL? A Theoretical Perspective" de Yuanhao Wang, Qinghua Liu, et Chi Jin. Ce papier analyse si le RLHF est plus difficile à implémenter que le RL standard en raison de la moindre quantité d'information contenue dans les préférences humaines comparées aux signaux de récompense explicites.
+Reinforcement Learning from Human Feedback (RLHF) represents a significant advancement by using human preferences as learning signals for AI agents. In this blog post, we explore the concepts from the paper "Is RLHF More Difficult than Standard RL? A Theoretical Perspective" by Yuanhao Wang, Qinghua Liu, and Chi Jin. This paper examines whether RLHF is more challenging to implement than standard RL due to the lesser amount of information contained in human preferences compared to explicit reward signals.
 
 ## Introduction
 
-Dans cet article de blog, nous explorons les concepts présentés dans le papier "Is RLHF More Difficult than Standard RL? A Theoretical Perspective" de Yuanhao Wang, Qinghua Liu, et Chi Jin. L'apprentissage par renforcement (RL) est une technique puissante où les agents apprennent à maximiser des récompenses cumulées en interagissant avec leur environnement. Cependant, concevoir des fonctions de récompense efficaces peut être complexe voir impossible.
+In this blog post, we explore the concepts presented in the paper "Is RLHF More Difficult than Standard RL? A Theoretical Perspective" by Yuanhao Wang, Qinghua Liu, and Chi Jin. Reinforcement Learning (RL) is a technique where agents learn to maximize cumulative rewards by interacting with their environment. However, designing effective reward functions can be complex and sometimes impossible.
 
-Pour surmonter cette limitation, l'apprentissage par renforcement à partir des feedbacks humains (RLHF) utilise les préférences humaines comme signal d'apprentissage. Cette méthode permet d'aligner plus facilement les objectifs des agents avec les valeurs humaines et rend le processus de collecte des données plus intuitif.
+To overcome this limitation, Reinforcement Learning from Human Feedback (RLHF) uses human preferences as learning signals. This method makes it easier to align the agents' goals with human values and makes the data collection process more intuitive.
 
-Le papier examine si RLHF est plus difficile à implémenter que le RL standard. Pour répondre à cette question, les auteurs proposent des approches de réduction qui convertissent les problèmes de RLHF en problèmes de RL standard. Ils introduisent notamment l'interface Préférence-vers-Récompense (P2R) et des adaptations de l'algorithme OMLE, montrant que ces méthodes peuvent résoudre efficacement une large gamme de modèles de RLHF avec des garanties théoriques robustes.
+The paper investigates whether RLHF is more difficult to implement than standard RL. To answer this question, the authors propose reduction approaches that convert RLHF problems into standard RL problems. They introduce the Preference-to-Reward (P2R) interface and adaptations of the OMLE algorithm, demonstrating that these methods can effectively solve a wide range of RLHF models with robust theoretical guarantees.
 
-D'un point de vue personnel, bien que mes connaissances sur le RLHF soient initialement limitées, cet article m'a permis de mieux comprendre ses possibilités et ses limites. Il est compliqué de faire une analyse approfondie, mais il est évident que les méthodes proposées peuvent offrir une alternative puissante dans certains cas du RLHF. Cependant, il est important de noter que ces méthodes ne permettent pas de répondre à 100% des défis du RLHF.
+From a personal perspective, although my knowledge of RLHF was initially limited, this paper helped me better understand its possibilities and limitations. While it is challenging to provide an in-depth analysis, it is evident that the proposed methods can offer a powerful alternative in some RLHF cases. However, it is important to note that these methods do not address all RLHF challenges.
 
 ![RLHF](https://hackmd.io/_uploads/B17j6H_QR.jpg)
 
-<p style="text-align: center;">Shoggoth with Smiley Face. Courtesy of twitter.com/anthrupad</p>
+<p style="text-align: center;">Shoggoth with Smiley Face. Courtesy of x.com/anthrupad</p>
 
-## Préliminaires
+## Preliminaries
 
-### Notations et Formulation du Problème
+### Notations and Problem Formulation
 
-Le papier se concentre sur les Processus de Décision de Markov épisodiques (MDP), définis par un tuple $(H, S, A, P)$ :
+The paper focuses on episodic Markov Decision Processes (MDPs), defined by a tuple $(H, S, A, P)$:
 
-- **H** : Longueur de chaque épisode.
-- **S** : Espace des états.
-- **A** : Espace des actions.
-- **P** : Fonction de probabilité de transition. Pour chaque étape $h \in [H]$ et $s, a \in S \times A$, $P_h(\cdot | s, a)$ spécifie la distribution de l'état suivant.
+- **H**: Length of each episode.
+- **S**: State space.
+- **A**: Action space.
+- **P**: Transition probability function. For each step $h \in [H]$ and $s, a \in S \times A$, $P_h(\cdot | s, a)$ specifies the distribution of the next state.
 
-### Trajectoire et Politique de Markov
+### Trajectory and Markov Policy
 
-Une trajectoire $\tau \in (S \times A)^H$ est une séquence d'interactions avec le MDP, définie comme $(s_1, a_1, \ldots, s_H, a_H)$. Une politique de Markov $\pi = \{\pi_h : S \to \Delta A\}_{h \in [H]}$ spécifie une distribution d'actions basée sur l'état actuel à chaque étape. En revanche, une politique générale $\pi = \{\pi_h : (S \times A)^{h-1} \times S \to \Delta A\}_{h \in [H]}$ peut choisir une action en se basant sur toute l'historique jusqu'au moment $h$.
+A trajectory $\tau \in (S \times A)^H$ is a sequence of interactions with the MDP, defined as $(s_1, a_1, \ldots, s_H, a_H)$. A Markov policy $\pi = \{\pi_h : S \to \Delta A\}_{h \in [H]}$ specifies a distribution of actions based on the current state at each step. In contrast, a general policy $\pi = \{\pi_h : (S \times A)^{h-1} \times S \to \Delta A\}_{h \in [H]}$ can choose an action based on the entire history up to step $h$.
 
-### Problème d'Optimisation
+### Optimization Problem
 
-L'objectif de l'apprentissage par renforcement est de trouver une politique optimale $\pi^*$ qui maximise la récompense cumulative attendue :
+The objective of reinforcement learning is to find an optimal policy $\pi^*$ that maximizes the expected cumulative reward:
 $$
 \pi^* = \arg \max_{\pi} \mathbb{E} \left[ \sum_{h=1}^H r(s_h, a_h) \mid \pi \right]
 $$
-où $r(s_h, a_h)$ est la récompense reçue après avoir pris l'action $a_h$ dans l'état $s_h$.
+where $r(s_h, a_h)$ is the reward received after taking action $a_h$ in state $s_h$.
 
-Dans le cadre de RLHF, au lieu de recevoir directement des signaux de récompense, l'algorithme interagit avec un MDP sans récompense et peut interroger un **oracle** de comparaison (évaluateurs humains) pour obtenir des informations sur les préférences entre différentes trajectoires.
+In the context of RLHF, instead of directly receiving reward signals, the algorithm interacts with a reward-free MDP and can query a **comparison oracle** (human evaluators) to obtain information about preferences between different trajectories.
 
-### Hypothèses Techniques
+### Technical Assumptions
 
-Les hypothèses suivantes sont essentielles pour les résultats théoriques du papier :
+The following assumptions are essential for the theoretical results of the paper:
 
-1. **Fonction de Lien $\sigma$** :
-   - La fonction de lien $\sigma$ traduit les préférences en probabilités de comparaison. Par exemple, si $\tau_1$ et $\tau_2$ sont deux trajectoires, alors la probabilité que $\tau_1$ soit préférée à $\tau_2$ est modélisée par:  $$\sigma(r^*(\tau_1) - r^*(\tau_2))$$
-   - **Hypothèse** : La fonction $\sigma$ est connue et satisfait certaines propriétés de régularité, telles qu'une dérivée inférieurement bornée ($\sigma'(x) \geq \alpha > 0$).
+1. **Link Function $\sigma$**:
+   - The link function $\sigma$ translates preferences into comparison probabilities. For example, if $\tau_1$ and $\tau_2$ are two trajectories, the probability that $\tau_1$ is preferred over $\tau_2$ is modeled by:  $$\sigma(r^*(\tau_1) - r^*(\tau_2))$$
+   - **Assumption**: The function $\sigma$ is known and satisfies certain regularity properties, such as a lower bounded derivative ($\sigma'(x) \geq \alpha > 0$).
 
-2. **Réalisation (Realizability)** :
-   - On suppose que la vraie fonction de récompense $r^*$ appartient à une classe de fonctions connue $\mathcal{R}$. Cela signifie qu'il existe un $r \in \mathcal{R}$ tel que $r = r^*$.
+2. **Realizability**:
+   - It is assumed that the true reward function $r^*$ belongs to a known class of functions $\mathcal{R}$. This means there exists an $r \in \mathcal{R}$ such that $r = r^*$.
 
-3. **Dimension Eluder** :
-   - La dimension Eluder est une mesure de la difficulté à identifier une fonction d'une classe de fonctions donnée en fonction des erreurs possibles. Pour une classe de fonctions $\mathcal{F}$, la dimension Eluder, notée $\dim_E(\mathcal{F}, \epsilon)$, quantifie le nombre de points $\epsilon$-indépendants nécessaires pour apprendre une fonction dans $\mathcal{F}$.
-    - **$\epsilon$** représente un niveau de précision ou de tolérance en termes de performance de l'algorithme.
+3. **Eluder Dimension**:
+   - The Eluder dimension is a measure of the difficulty of identifying a function from a given function class based on possible errors. For a function class $\mathcal{F}$, the Eluder dimension, denoted $\dim_E(\mathcal{F}, \epsilon)$, quantifies the number of $\epsilon$-independent points needed to learn a function in $\mathcal{F}$.
+    - **$\epsilon$** represents a level of precision or tolerance in terms of the algorithm's performance.
 
-4. **Approximation de Fonction** :
-   - Il est supposé que nous connaissons une classe de fonctions de récompense $\mathcal{R}$ et que nous pouvons utiliser des approximations de fonction pour modéliser les récompenses.
+4. **Function Approximation**:
+   - It is assumed that we know a class of reward functions $\mathcal{R}$ and can use function approximations to model the rewards.
 
-### Types de Préférences
+### Types of Preferences
 
-Le papier distingue deux types de préférences pour modéliser les feedbacks humains :
+The paper distinguishes between two types of preferences for modeling human feedback:
 
-1. **Préférences Basées sur l'Utilité** :
-   - **Définition** : Ces préférences sont modélisées par une fonction de récompense sous-jacente $r^*$. L'oracle de comparaison compare deux trajectoires $\tau_1$ et $\tau_2$ en se basant sur la différence de leurs récompenses.
+1. **Utility-Based Preferences**:
+   - **Definition**: These preferences are modeled by an underlying reward function $r^*$. The comparison oracle compares two trajectories $\tau_1$ and $\tau_2$ based on the difference in their rewards.
 
-2. **Préférences Générales** :
-   - **Définition** : Pour des préférences plus complexes, on introduit le concept du von Neumann winner. Une politique $\pi^*$ est un von Neumann winner si elle maximise l'utilité moyenne contre toute autre politique, même lorsque les préférences ne peuvent pas être modélisées par une simple fonction d'utilité. (Le concept de Von Neumann sera détaillé dans le section dediés)
+2. **General Preferences**:
+   - **Definition**: For more complex preferences, the concept of a von Neumann winner is introduced. A policy $\pi^*$ is a von Neumann winner if it maximizes the average utility against any other policy, even when preferences cannot be modeled by a simple utility function. (The concept of von Neumann will be detailed in a dedicated section)
 
 ## Motivating Example
 
-The subject is not extremely deep and complex, but an example never hurt anyone. Here’s how RLHF can be applied in a practical scenario.
+The subject is not extremely deep and involved, but an example never hurt anyone. Here’s how RLHF can be applied in a practical scenario.
 
-### Exemple : Entraînement d'un Robot de Service à Domicile
+### Example: Training a Home Service Robot
 
-Imaginez développer un robot de service destiné à aider les personnes âgées à domicile. La conception d'une fonction de récompense précise pour chaque tâche, comme préparer le thé ou ranger la cuisine, peut être complexe et subjective.
+Imagine developing a service robot designed to help elderly people at home. Designing a precise reward function for each task, such as making tea or tidying up the kitchen, can be complex and subjective.
 
-![robot_who_help](https://hackmd.io/_uploads/Hyx5QOOX0.jpg)
+![robot-home-service](https://hackmd.io/_uploads/HyfKSJtXR.png)
 
 
-#### Défis de la Conception des Récompenses
+#### Challenges in Designing Rewards
 
-1. **Complexité et Subjectivité des Tâches** :
-   - La préparation du thé peut inclure plusieurs étapes (faire bouillir de l'eau, mettre le thé dans la théière, verser l'eau, etc.), chacune ayant ses propres critères de réussite.
-   - La notion de "cuisine bien rangée" peut varier considérablement d'une personne à l'autre.
+1. **Complexity and Subjectivity of Tasks**:
+   - Making tea can involve multiple steps (boiling water, putting tea in the teapot, pouring water, etc.), each with its own success criteria.
+   - The notion of a "well-tidied kitchen" can vary significantly from person to person.
 
-2. **Préférences Utilisateur** :
-   - Les préférences personnelles jouent un rôle crucial. Par exemple, une personne peut préférer un thé plus fort, tandis qu'une autre préfère un thé plus léger.
-   - Les attentes peuvent également varier en fonction du contexte.
+2. **User Preferences**:
+   - Personal preferences play a crucial role. For example, one person may prefer stronger tea, while another prefers lighter tea.
+   - Expectations can also vary based on the context.
 
-#### Application de RLHF
+#### Application of RLHF
 
-1. **Collecte des Préférences** :
-   - Le robot effectue différentes tentatives pour préparer le thé ou ranger la cuisine.
-   - Les utilisateurs fournissent des feedbacks en comparant deux résultats de ces tentatives.
+1. **Collecting Preferences**:
+   - The robot performs various attempts to make tea or tidy up the kitchen.
+   - Users provide feedback by comparing two results of these attempts.
 
-2. **Utilisation de l'Interface Préférence-vers-Récompense (P2R)** :
-   - L'interface P2R convertit ces préférences en signaux de récompense approximatifs. (Nous allons detaillez cette algorithme dans la prochaine partie)
+2. **Using the Preference-to-Reward Interface (P2R)**:
+   - The P2R interface converts these preferences into approximate reward signals. (We will detail this algorithm in the next section)
 
-3. **Apprentissage et Adaptation** :
-   - Le robot utilise ces estimations pour améliorer ses politiques et mieux aligner ses actions sur les préférences des utilisateurs.
+3. **Learning and Adapting**:
+   - The robot uses these estimates to improve its policies and better align its actions with user preferences.
 
-Cet exemple montre comment RLHF peut transformer des tâches complexes et subjectives en processus d'apprentissage gérables, alignant les actions des agents sur les préférences humaines.
+This example shows how RLHF can transform complex and subjective tasks into manageable learning processes, aligning agents' actions with human preferences.
 
-## Partie 3 : Préférences Basées sur l'Utilité
+## Part 3: Utility-Based Preferences
 
 ### Introduction
 
-Les préférences basées sur l'utilité modélisent les préférences humaines en termes de récompenses. Plutôt que de définir directement des fonctions de récompense, l'apprentissage par renforcement à partir des feedbacks humains (RLHF) utilise les comparaisons de trajectoires pour dériver des fonctions de récompense approximatives.
+Utility-based preferences model human preferences in terms of rewards. Instead of directly defining reward functions, Reinforcement Learning from Human Feedback (RLHF) uses trajectory comparisons to derive approximate reward functions.  
+
+For example, in the motivating example of training a household service robot, utility-based preferences can be used to capture the varying subjective preferences of different users for tasks like preparing tea or cleaning the kitchen. By comparing the outcomes of different trajectories, the robot can learn to align its actions more closely with individual user preferences.
+
+![tea-in-the-kitchen](https://hackmd.io/_uploads/HyXKxkKXR.png)
+
 
 ### P2R: Preference to Reward
 
-L'algorithme P2R (Preference to Reward) convertit les préférences humaines en récompenses utilisables par les algorithmes de RL standard. Il facilite l'intégration des feedbacks humains dans le processus d'apprentissage, permettant aux agents d'aligner leurs actions avec les préférences des utilisateurs.
+The P2R (Preference to Reward) algorithm converts human preferences into rewards that can be used by standard RL algorithms. It facilitates the integration of human feedback into the learning process, allowing agents to align their actions with user preferences.
 
 ![P2R_algo](https://hackmd.io/_uploads/r169DcvXR.png)
 
-### Fonctionnement de P2R
+### How P2R Works
 
-1. **Ensemble de Confiance pour les Récompenses** :
+1. **Confidence Set for Rewards**:
    
-   P2R maintient un ensemble de confiance $B_r$ contenant les fonctions de récompense possibles basées sur les préférences observées. Cet ensemble de confiance est initialisé pour inclure toutes les fonctions de récompense compatibles avec les préférences exprimées par les utilisateurs.
+   P2R maintains a confidence set $B_r$ containing possible reward functions based on the observed preferences. This confidence set is initialized to include all reward functions consistent with the expressed preferences.
 
-2. **Oracle de Comparaison** :
+2. **Comparison Oracle**:
    
-   Lorsqu'un nouvel échantillon de trajectoire $\tau$ est obtenu, P2R décide s'il est nécessaire de consulter l'oracle de comparaison pour obtenir un feedback. Si les fonctions de récompense possibles dans $B_r$ s'accordent suffisamment sur la récompense de $\tau$, P2R utilise cette estimation sans interroger l'oracle. Sinon, P2R interroge l'oracle pour comparer $\tau$ avec une trajectoire de référence $\tau_0$.
+   When a new trajectory sample $\tau$ is obtained, P2R decides whether it is necessary to consult the comparison oracle for feedback. If the possible reward functions in $B_r$ sufficiently agree on the reward for $\tau$, P2R uses this estimate without querying the oracle. Otherwise, P2R queries the oracle to compare $\tau$ with a reference trajectory $\tau_0$.
 
-3. **Mise à Jour de l'Ensemble de Confiance** :
+3. **Updating the Confidence Set**:
    
-   À chaque interrogation de l'oracle, l'ensemble $B_r$ est mis à jour pour inclure uniquement les fonctions de récompense compatibles avec les nouvelles comparaisons. Ce processus de mise à jour utilise des techniques de maximum de vraisemblance pour ajuster les estimations de la fonction de récompense réelle.
+   With each oracle query, the set $B_r$ is updated to include only those reward functions consistent with the new comparisons. This update process uses maximum likelihood techniques to adjust the estimates of the true reward function.
 
-
-### Utilité de P2R
+### Utility of P2R
 
 ![P2R_schema](https://hackmd.io/_uploads/ByIK4dOXA.png)
 
+1. **Query Efficiency**:
+   - P2R minimizes the number of oracle queries by using reward estimates when possible. This reduces the workload for human evaluators and makes learning more efficient.
 
-1. **Économie de Requêtes à l'Oracle** :
-   - P2R minimise le nombre de requêtes nécessaires à l'oracle en utilisant des estimations de récompense lorsque possible. Cela réduit la charge de travail pour les évaluateurs humains et rend l'apprentissage plus efficace.
+2. **Compatibility with Standard RL Algorithms**:
+   - By converting preferences into approximate rewards, P2R allows direct use of standard RL algorithms. RL algorithms such as Q-learning, SARSA, or policy-based methods can thus benefit from human preferences without significant reengineering.
 
-2. **Compatibilité avec les Algorithmes de RL Standard** :
-   - En convertissant les préférences en récompenses approximatives, P2R permet l'utilisation directe des algorithmes de RL standard. Les algorithmes de RL tels que Q-learning, SARSA, ou les méthodes basées sur les politiques peuvent ainsi bénéficier des préférences humaines sans nécessiter de réingénierie significative.
+3. **Theoretical Robustness**:
+   - P2R provides theoretical guarantees on the learning efficiency, ensuring that the learned policies are close to optimal with a reasonable number of samples.
 
-3. **Robustesse Théorique** :
-   - P2R fournit des garanties théoriques sur l'efficacité de l'apprentissage, assurant que les politiques apprises sont proches de l'optimalité avec un nombre d'échantillons raisonnable.
+### Instantiations of P2R
 
-### Instanciations de P2R
+1. **Tabular MDPs**:
+   - **Definition**: A tabular MDP is a type of MDP where the state and action spaces are discrete and relatively small, allowing transitions and rewards to be represented in tables.
+   - **Algorithm**: For tabular MDPs, P2R can be used with the UCBVI-BF algorithm (Upper Confidence Bound for Value Iteration with Bonus Function).
 
-1. **MDPs Tabulaires** :
-   - **Définition** : Un MDP tabulaire est un type de MDP où l'espace des états et des actions est discret et de taille relativement modeste, permettant de représenter les transitions et les récompenses sous forme de tableaux.
-   - **Algorithme** : Pour les MDPs tabulaires, P2R peut être utilisé avec l'algorithme UCBVI-BF (Upper Confidence Bound for Value Iteration with Bonus Function).
+2. **RL Problems with Low Bellman-Eluder Dimension**:
+   - **Definition**: The Bellman-Eluder dimension measures the complexity of an RL problem in terms of state and action dependence. A problem with a low Bellman-Eluder dimension has a structure that facilitates learning.
+   - **Algorithm**: For RL problems with a low Bellman-Eluder dimension, P2R can be used with the GOLF algorithm (Gradient-Optimistic Linear Function).
 
-2. **Problèmes de RL avec Faible Dimension Bellman-Eluder** :
-   - **Définition** : La dimension Bellman-Eluder mesure la complexité d'un problème de RL en termes de dépendance des états et des actions. Un problème avec une faible dimension Bellman-Eluder a une structure qui facilite l'apprentissage.
-   - **Algorithme** : Pour les problèmes de RL avec une faible dimension Bellman-Eluder, P2R peut être utilisé avec l'algorithme GOLF (Gradient-Optimistic Linear Function).
+3. **MDPs with Generalized Eluder Dimension**:
+   - **Definition**: The generalized Eluder dimension is an extension of the Eluder dimension that applies to more complex and general function classes.
+   - **Algorithm**: For MDPs with a generalized Eluder dimension, P2R can be used with the OMLE algorithm (Optimistic Model-based Learning).
 
-3. **MDPs avec Dimension Eluder Généralisée** :
-   - **Définition** : La dimension Eluder généralisée est une extension de la dimension Eluder qui s'applique à des classes de fonctions plus complexes et plus générales.
-   - **Algorithme** : Pour les MDPs avec une dimension Eluder généralisée, P2R peut être utilisé avec l'algorithme OMLE (Optimistic Model-based Learning).
+### Theoretical Analysis of P2R
 
+The theoretical analysis of P2R shows that this algorithm allows learning an $\epsilon$-optimal policy by effectively converting human preferences into rewards usable by standard RL algorithms.
 
-### Analyse Théorique de P2R
+**Sample Complexity**: P2R has a sample complexity proportional to the size of the state and action space and the episode length, ensuring efficient learning even in complex environments.
 
-L'analyse théorique de P2R montre que cet algorithme permet d'apprendre une politique $\epsilon$-optimale en convertissant efficacement les préférences humaines en récompenses utilisables par les algorithmes de RL standard.
+**Query Complexity**: P2R minimizes oracle queries by using reward estimates when possible. The query complexity depends on the desired precision but remains manageable through the use of confidence sets and targeted queries.
 
-**Complexité d'échantillonnage** : P2R a une complexité d'échantillonnage proportionnelle à la taille de l'espace d'état et d'action, ainsi qu'à la longueur de l'épisode, assurant un apprentissage efficace même dans des environnements complexes.
+**Theoretical Robustness**: The theoretical guarantees of P2R include convergence to $\epsilon$-optimal policies with a reasonable number of samples and queries, ensuring robustness comparable to standard RL algorithms.
 
-**Complexité de requête** : P2R minimise les requêtes à l'oracle en utilisant des estimations de récompense lorsque possible. La complexité de requête dépend de la précision souhaitée, mais reste gérable grâce à l'utilisation d'ensembles de confiance et d'interrogations ciblées.
+P2R thus optimizes sample and query complexity while guaranteeing the learning of $\epsilon$-optimal policies from human preferences.
 
-**Robustesse théorique** : Les garanties théoriques de P2R incluent la convergence vers des politiques $\epsilon$-optimales avec un nombre raisonnable d'échantillons et de requêtes, assurant une robustesse comparable aux algorithmes de RL standard.
+### P-OMLE: Optimistic Model-based Learning from Preferences
 
-P2R optimise ainsi la complexité d'échantillonnage et de requête tout en garantissant l'apprentissage de politiques $\epsilon$-optimales à partir des préférences humaines.
+The P-OMLE (Preference-based Optimistic Model-based Learning) method is an adaptation of the OMLE algorithm to directly handle trajectory preferences. It aims to reduce query complexity while maintaining the effectiveness of learning optimal policies from human feedback.
 
-### P-OMLE : Optimistic Model-based Learning from Preferences
+### OMLE Algorithm: Optimistic Model-based Learning with Exploration
 
-La méthode P-OMLE (Preference-based Optimistic Model-based Learning) est une adaptation de l'algorithme OMLE pour traiter directement les préférences des trajectoires. Elle vise à réduire la complexité de requête tout en maintenant l'efficacité de l'apprentissage des politiques optimales à partir de feedbacks humains.
+The OMLE (Optimistic Model-based Learning with Exploration) algorithm comes from another paper *(Optimistic MLE—A Generic Model-based Algorithm for Partially Observable Sequential Decision Making)* and is not detailed in the primary paper we are discussing. Here is a brief explanation to provide context.
 
-### Algorithme OMLE : Optimistic Model-based Learning with Exploration
+OMLE uses optimistic planning and promotes exploration to learn optimal policies. It starts by defining a confidence set for the reward and transition functions. At each step, it plans optimistically using the current best estimates, executes the policy to collect data, and updates the model estimates based on new observations. This process repeats until convergence.
 
-L'algorithme OMLE (Optimistic Model-based Learning with Exploration) provient d'un autre papier *(Optimistic MLE—A Generic Model-based Algorithm for Partially Observable Sequential Decision Making)* et n'est pas détaillé dans le papier principal que nous discutons. Voici une brève explication pour fournir du contexte.
+The algorithm is advantageous for its efficient exploration, adaptability, and robust theoretical guarantees, ensuring convergence to optimal policies with a reasonable number of samples.
 
-OMLE utilise une planification optimiste et favorise l'exploration pour apprendre des politiques optimales. Il commence par définir un ensemble de confiance pour les fonctions de récompense et de transition. À chaque étape, il planifie de manière optimiste en utilisant les meilleures estimations actuelles, exécute la politique pour collecter des données, et met à jour les estimations des modèles en fonction des nouvelles observations. Ce processus se répète jusqu'à convergence.
-
-L'algorithme est avantageux pour son exploration efficace, son adaptabilité et ses garanties théoriques robustes, assurant la convergence vers des politiques optimales avec un nombre raisonnable d'échantillons.
-
-#### Fonctionnement de P-OMLE
+#### How P-OMLE Works
 
 ![P-OMLE_algo](https://hackmd.io/_uploads/ByxUO9wQR.png)
 
-
-1. **Initialisation**
+1. **Initialization**
    
-   **Ensemble de confiance initial $B_1$** : P-OMLE commence par définir un ensemble de confiance $B_1$ pour les fonctions de récompense et de transition, initialisé pour inclure toutes les fonctions compatibles avec les préférences observées.
+   **Initial Confidence Set $B_1$**: P-OMLE starts by defining an initial confidence set $B_1$ for the reward and transition functions, initialized to include all functions consistent with the observed preferences.
 
-2. **Planification Optimiste**
+2. **Optimistic Planning**
    
-   **Optimisme dans la face de l'incertitude** : À chaque étape $t$, P-OMLE effectue une planification optimiste pour déterminer la politique $\pi^t$ et les fonctions de récompense et de transition associées $(r^t, p^t)$ qui maximisent la valeur estimée. Cette planification utilise une approche basée sur l'optimisme, en supposant que les meilleures estimations actuelles sont correctes.
+   **Optimism in the Face of Uncertainty**: At each step $t$, P-OMLE performs optimistic planning to determine the policy $\pi^t$ and the associated reward and transition functions $(r^t, p^t)$ that maximize the estimated value. This planning uses an optimism-based approach, assuming the current best estimates are correct.
 
-3. **Collecte de Données**
+3. **Data Collection**
    
-   **Exécution de la politique** : P-OMLE exécute la politique $\pi^t$ pour collecter une nouvelle trajectoire $\tau$. Cette trajectoire est ensuite comparée avec une trajectoire de référence $\tau_0$ en utilisant l'oracle de comparaison, qui fournit un feedback sur les préférences entre $\tau$ et $\tau_0$.
+   **Policy Execution**: P-OMLE executes the policy $\pi^t$ to collect a new trajectory $\tau$. This trajectory is then compared with a reference trajectory $\tau_0$ using the comparison oracle, which provides feedback on the preferences between $\tau$ and $\tau_0$.
 
-4. **Mise à Jour de l'Ensemble de Confiance**
+4. **Updating the Confidence Set**
    
-   **Actualisation basée sur les préférences** : L'ensemble de confiance $B_t$ est mis à jour en fonction des nouvelles données de comparaison, utilisant des techniques de maximum de vraisemblance pour ajuster les estimations des fonctions de récompense et de transition. Chaque nouvelle comparaison fournit des informations supplémentaires sur la fonction de récompense et permet d'exclure certaines fonctions de $B_t$ qui ne sont plus compatibles avec les observations.
+   **Preference-Based Updating**: The confidence set $B_t$ is updated based on the new comparison data, using maximum likelihood techniques to adjust the reward and transition function estimates. Each new comparison provides additional information about the reward function and allows excluding certain functions from $B_t$ that are no longer consistent with the observations.
 
-#### Utilité de P-OMLE
+#### Utility of P-OMLE
 
-P-OMLE présente plusieurs avantages :
+P-OMLE presents several advantages:
 
-1. **Réduction de la Complexité de Requête**
-   - **Économie de requêtes** : P-OMLE réduit le nombre de requêtes nécessaires à l'oracle en limitant les interrogations uniquement lorsque l'incertitude est élevée.
+1. **Query Complexity Reduction**
+   - **Query Efficiency**: P-OMLE reduces the number of necessary oracle queries by limiting inquiries to only when uncertainty is high.
 
-2. **Adaptabilité**
-   - **Flexibilité aux préférences complexes** : P-OMLE s'adapte aux préférences des trajectoires, permettant de traiter des feedbacks humains plus complexes et variés.
+2. **Adaptability**
+   - **Flexibility to Complex Preferences**: P-OMLE adapts to trajectory preferences, allowing for handling more complex and varied human feedback.
 
-3. **Robustesse Théorique**
-   - **Garanties de performance** : P-OMLE est soutenu par des garanties théoriques solides.  
-Concrètement, les politiques apprises convergent vers l'optimalité avec une complexité d'échantillonnage proportionnelle à la dimension généralisée Eluder du modèle, et une complexité de requête améliorée, passant d'une dépendance cubique à linéaire par rapport à $d_R$ (mesure de la complexité de la classe des fonctions de récompense)
+3. **Theoretical Robustness**
+   - **Performance Guarantees**: P-OMLE is supported by robust theoretical guarantees. Specifically, the learned policies converge to optimality with a sample complexity proportional to the generalized Eluder dimension of the model and an improved query complexity, transitioning from cubic to linear dependence on $d_R$ (measure of the complexity of the reward function class).
 
-### Instanciations de P-OMLE
+### Instantiations of P-OMLE
 
-Le papier propose plusieurs instanciations de P-OMLE pour différents types de MDP et classes de fonctions de récompense :
+The paper proposes several instantiations of P-OMLE for different types of MDPs and reward function classes:
+
+1. **Adversarial Tabular MDPs**
+   - **Definition**: An adversarial tabular MDP is an MDP where states and actions are discrete, but rewards can be chosen adversarially for each episode, making learning more challenging.
+   - **Algorithm**: P-OMLE uses an algorithm based on optimistic planning methods.
+   - **Sample Complexity**: $O(|S|^2 |A| H^3 / \epsilon^2)$.
+   - **Query Complexity**: Optimized proportionally to the complexity of the state and action space.
+
+2. **Adversarial Linear MDPs**
+   - **Definition**: An adversarial linear MDP is an MDP where transitions can be modeled by linear functions, but rewards can be chosen adversarially.
+   - **Algorithm**: P-OMLE uses linear planning methods to estimate reward and transition functions.
+   - **Sample Complexity**: $O(d H^2 K^{6/7})$.
+   - **Query Complexity**: Reduced through the use of linear models for reward and transition estimates.
+
+### Extension to K-Element Comparison
+
+To improve P-OMLE's efficiency, the paper proposes an extension to handle K-element comparisons, where the oracle evaluates multiple trajectories simultaneously.
+
+#### K-Element Comparison Operation
+
+1. **Oracle Query**
+
+    **Multiple Comparisons**: Instead of comparing two trajectories at a time, the oracle evaluates a set of $K$ trajectories simultaneously.
+
+2. **Updating the Confidence Set**
+
+    **Incorporating Multiple Comparisons**: The information obtained from K-element comparisons is used to update the confidence set $B_t$.
+
+#### Advantages of K-Element Comparison
+
+1. **Query Complexity Reduction**
+
+    **Query Efficiency**: By querying the oracle with multiple trajectories simultaneously, the algorithm reduces the total number of necessary queries.
+
+2. **Learning Efficiency**
+
+   **Data Enrichment**: K-element comparison allows gathering richer and more diverse information with each query, thus improving overall learning efficiency.
+
+#### Associated Theorem
+
+**Theorem 10**: The query complexity with K-element comparison is reduced by a factor of $\min\{K, m\}$, where $m$ is the number of exploratory policies needed. This means the number of oracle queries decreases proportionally to the number of elements compared simultaneously.
+
+### Theoretical Analysis of P-OMLE
+
+The theoretical analysis of P-OMLE shows that this algorithm allows learning an $\epsilon$-optimal policy with reduced sample and query complexity. By combining optimistic planning with preference-based updates, P-OMLE ensures efficient convergence to optimal policies while minimizing oracle queries.
+
+**Sample Complexity**: The method has a sample complexity proportional to the size of the state and action space, as well as the episode length, ensuring that the number of samples needed to achieve $\epsilon$-optimality is manageable.
+
+**Query Complexity**: By using K-element comparisons and optimistic updates, P-OMLE significantly reduces the number of necessary oracle queries, which is crucial for making human feedback-based learning feasible in real-world scenarios.
+
+**Theoretical Robustness**: The theoretical guarantees associated with P-OMLE ensure that this method is reliable and effective for reinforcement learning from human feedback.
+
+### Potential Modifications for UCBVI-BF and GOLF
+
+The UCBVI-BF and GOLF algorithms can also be adapted to better integrate human preferences. By adjusting the update and planning mechanisms to account for human preferences and feedback, these algorithms can
+
+ enhance their efficiency and robustness in the context of RLHF. This could include incorporating techniques to reduce query complexity and optimizing confidence sets to better handle complex preferences.
+
+### Differences between P-OMLE and P2R
+
+P2R and P-OMLE primarily differ in their approach to learning and optimization:
+
+**P2R**: Provides a straightforward interface for converting preferences into rewards usable by standard RL algorithms. While effective, P2R may lead to high query complexity due to its "black-box" nature.
+
+**P-OMLE**: Uses a "white-box" modification of the OMLE algorithm, allowing for specialized analysis and significant query complexity reduction. P-OMLE focuses on optimistic planning and confidence set updates based on preferences directly, enhancing efficiency.
+
+## Part 4: Learning from General Preferences
+
+### Introduction
+
+Section 4 of the paper addresses reduction methods to handle general preferences, i.e., preferences that cannot be directly modeled by a utility function. The authors show how these preferences can be approached by reducing them to learning problems in Factorized Independent Markov Games (FI-MGs) or adversarial MDPs. This section also details the use of the OMLE algorithm adapted to these preferences.  
+
+For instance, in the context of the motivating example of a household service robot, general preferences might involve more complex tasks that require coordination between multiple agents, such as a robot and a human working together to organize a room. These general preferences can be captured by comparing different collaborative trajectories and learning the optimal policies for such interactions. This section also details the use of the OMLE algorithm adapted to these preferences.
+
+![robot-work](https://hackmd.io/_uploads/By9cXyY7R.png)
 
 
-1. **MDPs Tabulaires Adversariaux**
-   - **Définition** : Un MDP tabulaire adversarial est un MDP où les états et les actions sont discrets, mais où les récompenses peuvent être choisies de manière adversariale pour chaque épisode, rendant l'apprentissage plus difficile.
-   - **Algorithme** : P-OMLE utilise un algorithme basé sur les méthodes de planification optimiste.
-   - **Complexité d'échantillonnage** : $O(|S|^2 |A| H^3 / \epsilon^2)$.
-   - **Complexité de requête** : Optimisée proportionnellement à la complexité de l'espace d'état et d'action.
+### Reduction to Markov Games
 
-2. **MDPs Linéaires Adversariaux**
-   - **Définition** : Un MDP linéaire adversarial est un MDP où les transitions peuvent être modélisées par des fonctions linéaires, mais où les récompenses peuvent être choisies de manière adversariale.
-   - **Algorithme** : P-OMLE utilise des méthodes de planification linéaire pour estimer les fonctions de récompense et de transition.
-   - **Complexité d'échantillonnage** : $O(d H^2 K^{6/7})$.
-   - **Complexité de requête** : Réduite grâce à l'utilisation de modèles linéaires pour les estimations de récompense et de transition.
+#### Factorized Independent Markov Games (FI-MGs)
 
-### Extension à la Comparaison par K-éléments
+A **Factorized Independent Markov Game (FI-MG)** is a zero-sum Markov game (a game where the total gains and losses are always zero) with the following characteristics:
 
-Pour améliorer l'efficacité de P-OMLE, le papier propose une extension pour gérer les comparaisons par K-éléments, où l'oracle évalue plusieurs trajectoires simultanément.
-
-#### Fonctionnement de la Comparaison par K-éléments
-
-1. **Interrogation de l'Oracle**
-
-    **Comparaison multiple** : Plutôt que de comparer deux trajectoires à la fois, l'oracle évalue un ensemble de $K$ trajectoires simultanément.
-
-2. **Mise à Jour de l'Ensemble de Confiance**
-
-    **Incorporation des comparaisons multiples** : Les informations obtenues à partir des comparaisons par K-éléments sont utilisées pour mettre à jour l'ensemble de confiance $B_t$.
-
-#### Avantages de la Comparaison par K-éléments
-
-1. **Réduction de la Complexité de Requête**
-
-    **Économie de requêtes** : En interrogeant l'oracle avec plusieurs trajectoires simultanément, l'algorithme réduit le nombre total de requêtes nécessaires.
-
-2. **Efficacité d'Apprentissage**
-
-   **Enrichissement des données** : La comparaison par K-éléments permet de recueillir des informations plus riches et diversifiées à chaque requête, améliorant ainsi l'efficacité globale de l'apprentissage.
-
-#### Théorème Associé
-
-**Théorème 10** : La complexité de requête avec la comparaison par K-éléments est réduite par un facteur de $\min\{K, m\}$,
-
- où $m$ est le nombre de politiques exploratoires nécessaires. Cela signifie que le nombre de requêtes nécessaires à l'oracle diminue proportionnellement au nombre d'éléments comparés simultanément.
-
-### Analyse Théorique de P-OMLE
-
-L'analyse théorique de P-OMLE montre que cet algorithme permet d'apprendre une politique $\epsilon$-optimale avec une complexité d'échantillonnage et de requête réduite. En combinant une planification optimiste avec des mises à jour basées sur les préférences, P-OMLE assure une convergence efficace vers des politiques optimales tout en minimisant les requêtes à l'oracle.
-
-**Complexité d'échantillonnage** : La méthode présente une complexité d'échantillonnage proportionnelle à la taille de l'espace d'état et d'action, ainsi qu'à la longueur de l'épisode, assurant que le nombre d'échantillons nécessaires pour atteindre une $\epsilon$-optimalité est gérable.
-
-**Complexité de requête** : En utilisant des comparaisons par K-éléments et des mises à jour optimistes, P-OMLE réduit significativement le nombre de requêtes nécessaires à l'oracle, ce qui est crucial pour rendre l'apprentissage par feedback humain praticable dans des scénarios réels.
-
-**Robustesse théorique** : Les garanties théoriques associées à P-OMLE assurent que cette méthode est fiable et efficace pour l'apprentissage par renforcement à partir des feedbacks humains.
-
-### Modifications Potentielles pour UCBVI-BF et GOLF
-
-Les algorithmes UCBVI-BF et GOLF peuvent également être adaptés pour mieux intégrer les préférences humaines. En ajustant les mécanismes de mise à jour et de planification pour tenir compte des préférences et des feedbacks humains, ces algorithmes peuvent améliorer leur efficacité et leur robustesse dans le contexte de RLHF. Cela pourrait inclure l'incorporation de techniques de réduction de la complexité de requête et l'optimisation des ensembles de confiance pour mieux gérer les préférences complexes.
-
-### Différences entre P-OMLE et P2R
-
-P2R et P-OMLE diffèrent principalement dans leur approche de l'apprentissage et de l'optimisation :
-
-**P2R** : Offre une interface simple pour convertir les préférences en récompenses utilisables par les algorithmes de RL standard. Bien qu'efficace, P2R peut entraîner une complexité de requête élevée en raison de sa nature "boîte noire".  
-
-**P-OMLE** : Utilise une modification "boîte blanche" de l'algorithme OMLE, permettant une analyse spécialisée et une réduction significative de la complexité des requêtes. P-OMLE se concentre sur la planification optimiste et la mise à jour des ensembles de confiance basés sur les préférences directement, ce qui améliore l'efficacité.
-
-## Partie 4 : Apprentissage à partir de Préférences Générales
-
-La section 4 du papier aborde les méthodes de réduction pour traiter des préférences générales, c'est-à-dire des préférences qui ne peuvent pas être directement modélisées par une fonction d'utilité. Les auteurs montrent comment ces préférences peuvent être abordées en les réduisant à des problèmes d'apprentissage dans des jeux de Markov factorisés et indépendants (FI-MG) ou à des MDPs adversariaux. Cette section détaille également l'utilisation de l'algorithme OMLE adapté à ces préférences.
-
-### Réduction aux Jeux de Markov
-
-#### Jeux de Markov Factorisés et Indépendants (FI-MG)
-
-Un **Jeu de Markov Factorisé et Indépendant (FI-MG)** est un jeu de Markov à somme nulle (jeu où la somme totale des gains et des pertes est toujours nulle) avec les caractéristiques suivantes :
-
-- **Espaces d'État et d'Action** : L'espace d'état $S$ est factorisé en deux sous-espaces $S^{(1)}$ et $S^{(2)}$, et l'espace d'action $A$ est factorisé en $A^{(1)}$ et $A^{(2)}$.
-- **Transition Factorisée** : La transition entre états est également factorisée en deux composantes indépendantes :
+- **State and Action Spaces**: The state space $S$ is factorized into two subspaces $S^{(1)}$ and $S^{(2)}$, and the action space $A$ is factorized into $A^{(1)}$ and $A^{(2)}$.
+- **Factorized Transition**: The transition between states is also factorized into two independent components:
    $$
    P_h(s_{h+1} | s_h, a_h) = P_h(s_{h+1}^{(1)} | s_h^{(1)}, a_h^{(1)}) \times P_h(s_{h+1}^{(2)} | s_h^{(2)}, a_h^{(2)})
    $$
-  où $s_h = (s_h^{(1)}, s_h^{(2)})$ et $a_h = (a_h^{(1)}, a_h^{(2)})$.
+  where $s_h = (s_h^{(1)}, s_h^{(2)})$ and $a_h = (a_h^{(1)}, a_h^{(2)})$.
 
-- **Politiques Restreintes** : Les classes de politiques $\Pi^{(1)}$ et $\Pi^{(2)}$ contiennent des politiques qui mappent une trajectoire partielle à une distribution sur les actions, respectivement pour les sous-espaces $S^{(1)}$ et $S^{(2)}$.
+- **Restricted Policies**: The policy classes $\Pi^{(1)}$ and $\Pi^{(2)}$ contain policies that map a partial trajectory to a distribution over actions, respectively for subspaces $S^{(1)}$ and $S^{(2)}$.
 
-#### Recherche du von Neumann Winner
+#### Finding the von Neumann Winner
 
-**von Neumann Winner** : 
+**von Neumann Winner**:
 
-**Définition** : Une politique $\pi^*$ est un von Neumann winner si elle maximise l'utilité moyenne contre toute autre politique. Formellement, dans un jeu à somme nulle, une politique $\pi^*$ maximise le gain attendu par rapport à toute autre politique adverse. Cela signifie que, pour toute politique adverse $\pi'$, le gain espéré en suivant $\pi^*$ est au moins aussi grand que le gain espéré en suivant $\pi'$. En d'autres termes, $\pi^*$ garantit le meilleur résultat possible contre l'adversaire le plus défavorable.  
+**Definition**: A policy $\pi^*$ is a von Neumann winner if it maximizes the average utility against any other policy. Formally, in a zero-sum game, a policy $\pi^*$ maximizes the expected gain compared to any other adversarial policy. This means that, for any adversarial policy $\pi'$, the expected gain of following $\pi^*$ is at least as high as the expected gain of following $\pi'$. In other words, $\pi^*$ guarantees the best possible result against the most unfavorable adversary.
 
-**Proposition 11** : Trouver un équilibre de Nash restreint dans un FI-MG revient à trouver un von Neumann winner dans le problème original de RLHF.
+**Proposition 11**: Finding a restricted Nash equilibrium in an FI-MG is equivalent to finding a von Neumann winner in the original RLHF problem.
 
-### Apprentissage à partir de Préférences basées sur l'État Final via les MDPs Adversariaux
+### Learning from Final-State Preferences via Adversarial MDPs
 
-Un **MDP Adversarial** est un cadre dans lequel l'algorithme interagit avec une série de MDPs ayant les mêmes transitions mais des récompenses choisies de manière adversariale pour chaque épisode.
+An **Adversarial MDP** is a framework in which the algorithm interacts with a series of MDPs having the same transitions but rewards chosen adversarially for each episode.
 
-#### Définition Formelle
+#### Formal Definition
 
-**Regret** : Le regret est défini comme l'écart entre le gain attendu de l'algorithme et le meilleur gain possible avec une politique de Markov fixe :
+**Regret**: Regret is defined as the gap between the expected gain of the algorithm and the best possible gain with a fixed Markov policy:
 
 $$
 \text{Regret}_K(A) = \max_{\pi \in \Pi_{\text{Markov}}} \sum_{k=1}^K \mathbb{E}^\pi \left[ \sum_{h=1}^H r_h^k(s_h, a_h) \right] - \sum_{k=1}^K \mathbb{E}^{\pi^k} \left[ \sum_{h=1}^H r_h^k(s_h, a_h) \right]
 $$
-  où $K$ est le nombre d'épisodes, $\pi$ est une politique de Markov, et $r_h^k$ est la fonction de récompense pour l'épisode $k$.
+  where $K$ is the number of episodes, $\pi$ is a Markov policy, and $r_h^k$ is the reward function for episode $k$.
 
-#### Algorithme pour MDPs Adversariaux
+#### Algorithm for Adversarial MDPs
 
-**Algorithme 4** : Implémentation de l'apprentissage du von Neumann winner via MDPs adversariaux.
+**Algorithm 4**: Implementation of learning the von Neumann winner via adversarial MDPs.
 
-![Screenshot from 2024-05-20 21-42-20](https://hackmd.io/_uploads/ryDyDRu7R.png)
+![algorithm_4](https://hackmd.io/_uploads/ryDyDRu7R.png)
 
+- **Steps**:
+  1. **Creating Independent Copies**: Create two independent copies of the original MDP, each controlled by adversarial MDP algorithms $A^{(1)}$ and $A^{(2)}$.
+  2. **Bernoulli Rewards**: Provide Bernoulli-type rewards based on the observed final states ($s_H^{(1)}$ and $s_H^{(2)}$).
+  3. **Updating Policies**: Update policies based on adversarial rewards.
 
-- **Étapes** :
-  1. **Création de Copies Indépendantes** : Créer deux copies indépendantes du MDP original, chacune contrôlée par des algorithmes de MDPs adversariaux $A^{(1)}$ et $A^{(2)}$.
-  2. **Récompenses Bernoulli** : Fournir des récompenses de type Bernoulli basées sur les états finaux observés ($s_H^{(1)}$ et $s_H^{(2)}$).
-  3. **Mise à Jour des Politiques** : Mettre à jour les politiques en fonction des récompenses adversariales.
+**Theorem 12**: If the adversarial MDP algorithm $A$ has sub-linear regret, this algorithm can find an approximate von Neumann winner using efficient sample and query complexity.
 
-**Théorème 12** : Si l'algorithme de MDP adversarial $A$ a un regret sous-linéaire, cet algorithme peut trouver un von Neumann winner approximatif en utilisant une complexité d'échantillonnage et de requête efficace.
+### Learning from Trajectory Preferences via OMLE
 
-### Apprentissage à partir de Préférences basées sur la Trajectoire via OMLE
+For general trajectory-based preferences, the OMLE algorithm is adapted to learn optimal policies in contexts where preferences do not follow a simple utility model.
 
-Pour les préférences générales basées sur la trajectoire, l'algorithme OMLE est adapté pour apprendre des politiques optimales dans des contextes où les préférences ne suivent pas un modèle d'utilité simple.
+#### How OMLE Works
 
-#### Fonctionnement de OMLE
+1. **Model Class Assumption**:
+   - It is assumed that the learner has a class of preference models $\mathcal{M}$ and a class of transition functions $\mathcal{P}$.
 
-1. **Hypothèse de Classe de Préférences** :
-   - On suppose que l'apprenant dispose d'une classe de modèles de préférences $\mathcal{M}$ et d'une classe de fonctions de transition $\mathcal{P}$.
+2. **Optimistic Model-based Learning**:
+   - OMLE uses an optimistic approach to plan and evaluate trajectories, choosing policies that maximize expected rewards under observed preferences.
 
-2. **Optimistic Model-based Learning** :
-   - OMLE utilise une approche optimiste pour planifier et évaluer les trajectoires, en choisissant les politiques qui maximisent les récompenses espérées sous les préférences observées.
+**Algorithm 5: OMLE for Trajectory Preferences**
 
-**Algorithme 5 : OMLE pour Préférences de Trajectoire**
+![Algorithm_5](https://hackmd.io/_uploads/r1YT8ROXR.png)
 
-![Screenshot from 2024-05-20 21-46-24](https://hackmd.io/_uploads/r1YT8ROXR.png)
+- **Steps**:
+  1. **Initialization**: Define an initial confidence set for the reward and transition functions.
+  2. **Optimistic Planning**: Choose the reward and transition functions that maximize expected rewards.
+  3. **Data Collection**: Execute optimistic policies to collect trajectory data and preference comparisons.
+  4. **Updating the Confidence Set**: Adjust estimates of the reward and transition functions.
 
+**Theorem 13**: By using OMLE, an approximate von Neumann winner can be learned with a sample complexity of $O(H^2 d_P |Π_{exp}|^2 \ln |P| / \epsilon^2 + H d_R |Π_{exp}| / \epsilon)$.
 
-- **Étapes** :
-  1. **Initialisation** : Définir un ensemble de confiance initial pour les fonctions de récompense et de transition.
-  2. **Planification Optimiste** : Choisir les fonctions de récompense et de transition qui maximisent les récompenses espérées.
-  3. **Collecte de Données** : Exécuter les politiques optimistes pour collecter des données de trajectoire et des comparaisons de préférences.
-  4. **Mise à Jour de l'Ensemble de Confiance** : Ajuster les estimations des fonctions de récompense et de transition.
+### Comparison of Methods
 
-**Théorème 13** : En utilisant OMLE, on peut apprendre un von Neumann winner approximatif avec une complexité d'échantillonnage de $O(H^2 d_P |Π_{exp}|^2 \ln |P| / \epsilon^2 + H d_R |Π_{exp}| / \epsilon)$.
+1. **FI-MG vs Adversarial MDPs**:
+   - **FI-MG**: Used to model factorized independent Markov games, where transitions and actions are divided into distinct subspaces.
+   - **Adversarial MDPs**: Models adversarial interactions in MDPs, with rewards chosen adversarially for each episode, allowing for finding von Neumann winners in more competitive contexts.
 
-### Comparaison des Méthodes
+2. **OMLE vs Algorithm for Adversarial MDPs**:
+   - **OMLE**: Uses an optimistic approach to plan and evaluate trajectories, particularly suited for general trajectory-based preferences.
+   - **Adversarial MDPs**: Uses independent copies of the original MDP and Bernoulli-type rewards, effective for learning optimal policies with sub-linear regret.
 
-1. **FI-MG vs MDP Adversariaux** :
-   - **FI-MG** : Utilisé pour modéliser des jeux de Markov factorisés et indépendants, où les transitions et les actions sont divisées en sous-espaces distincts.
-   - **MDP Adversariaux** : Modélise des interactions adversariales dans des MDPs, avec des récompenses choisies de manière adversariale pour chaque épisode, permettant de trouver des von Neumann winners dans des contextes plus compétitifs.
+## Discussions and Critiques
 
-2. **OMLE vs Algorithme pour MDPs Adversariaux** :
-   - **OMLE** : Utilise une approche optimiste pour planifier et évaluer les trajectoires, particulièrement adapté pour des préférences générales basées sur la trajectoire.
-   - **MDP Adversariaux** : Utilise des copies indépendantes du MDP original et des récompenses de type Bernoulli, efficace pour apprendre des politiques optimales avec un regret sous-linéaire.
+### Main Contributions
 
-## Discussions et Critiques
+1. **Reduction to Standard RL**:
+   - The authors show how RLHF problems can be converted into standard RL problems, enabling the use of existing RL algorithms with robustness guarantees. This proves that it is possible to extend RLHF methods to RL without much difficulty, allowing the use of traditional algorithms like P2R, P-OMLE, UCBVI-BF, and GOLF with few modifications. This approach facilitates the integration of human preferences into reinforcement learning processes, making the methods more accessible and applicable to a wider range of problems.
+   - This simplifies the practical implementation of RLHF in complex environments by reusing proven standard RL algorithms.
+   - The reduction also allows leveraging recent advancements in standard RL to improve RLHF performance.
 
-### Contributions Principales
+2. **General Approaches**:
+   - The proposed methods offer an elegant and practical approach to leveraging existing RL techniques in the context of human feedback, adapting to different types of preferences, whether utility-based or more general.
 
-1. **Réduction à l'apprentissage par renforcement standard** :
-   - Les auteurs montrent comment les problèmes de RLHF peuvent être convertis en problèmes de RL standard, permettant ainsi l'utilisation des algorithmes de RL existants avec des garanties de robustesse. Cela prouve qu'il est possible d'étendre les méthodes de RLHF au RL sans trop de difficultés et d'utiliser ainsi les algorithmes traditionnels comme P2R, P-OMLE, UCBVI-BF, et GOLF avec peu de modifications. Cette approche facilite l'intégration des préférences humaines dans les processus d'apprentissage par renforcement, rendant les méthodes plus accessibles et applicables à une gamme plus large de problèmes.
-   - Cela simplifie la mise en œuvre pratique du RLHF dans des environnements complexes en réutilisant les algorithmes éprouvés de RL standard.
-   - La réduction permet également de tirer parti des avancées récentes en RL standard pour améliorer les performances de RLHF.
+3. **Theoretical Guarantees**:
+   - The paper provides rigorous proofs to demonstrate the effectiveness of the proposed approaches in terms of sample and query complexity. The robust theoretical guarantees ensure that the learned policies converge to optimality with manageable sample and query complexity. This includes results showing that P2R and P-OMLE can learn $\epsilon$-optimal policies with a reasonable number of samples and queries, even in complex environments.
 
-2. **Approches générales** :
-   - Les méthodes proposées offrent une approche élégante et pratique pour exploiter les techniques de RL existantes dans des contextes de feedback humain, en s'adaptant à différents types de préférences, qu'elles soient basées sur l'utilité ou plus générales.
+### Intuitions Behind the Theorems and Proofs
 
-3. **Garanties Théoriques** :
-   - Le papier fournit des preuves rigoureuses pour démontrer l'efficacité des approches proposées en termes de complexité d'échantillonnage et de requête. Les garanties théoriques solides assurent que les politiques apprises convergent vers l'optimalité avec une complexité d'échantillonnage et de requête gérable. Cela inclut des résultats montrant que P2R et P-OMLE peuvent apprendre des politiques $\epsilon$-optimales avec un nombre raisonnable d'échantillons et de requêtes, même dans des environnements complexes.
+1. **Preference-to-Reward Interface (P2R)**:
+   - P2R converts preferences into rewards usable by standard RL algorithms, reducing learning complexity and benefiting from advancements in traditional RL algorithms.
 
-### Intuitions Derrière les Théorèmes et les Preuves
+2. **OMLE and P-OMLE**:
+   - OMLE and P-OMLE use an optimistic approach to plan and evaluate trajectories, ensuring that the learned policies are close to optimal. This approach maximizes the use of available preference information and minimizes the number of oracle queries.
 
-1. **Interface Préférence-vers-Récompense (P2R)** :
-   - P2R convertit les préférences en récompenses utilisables par les algorithmes de RL standard, ce qui réduit la complexité de l'apprentissage et permet de bénéficier des avancées des algorithmes de RL traditionnels.
+### Potential Weaknesses
 
-2. **OMLE et P-OMLE** :
-   - OMLE et P-OMLE utilisent une approche optimiste pour planifier et évaluer les trajectoires, assurant que les politiques apprises sont proches de l'optimalité. Cette approche permet de maximiser l'utilisation des informations de préférence disponibles et de minimiser le nombre de requêtes à l'oracle.
+1. **Strong Assumptions**:
+   - Some assumptions, such as the precise knowledge of the link function $\sigma$, may not be realistic in all contexts. In practice, human preferences can be more complex and difficult to model precisely.
 
-### Faiblesses Potentielles
+2. **Query Complexity**:
+   - Although query complexity is reduced, it can still be high for very complex problems or nuanced preferences. This could limit the applicability of the proposed methods in scenarios where query resources are limited.
 
-1. **Hypothèses Fortes** :
-   - Certaines hypothèses, telles que la connaissance précise de la fonction de lien $\sigma$, peuvent ne pas être réalistes dans tous les contextes. En pratique, les préférences humaines peuvent être plus complexes et difficiles à modéliser précisément.
+3. **Lack of Details**:
+   - The paper could benefit from more details on the theorems and proofs to clarify certain steps and assumptions. A deeper explanation of key concepts and theoretical justifications would strengthen the understanding of the proposed methods.
 
-2. **Complexité de Requête** :
-   - Bien que la complexité de requête soit réduite, elle peut encore être élevée pour des problèmes très complexes ou des préférences très nuancées. Cela pourrait limiter l'applicabilité des méthodes proposées dans des scénarios où les ressources en termes de requêtes sont limitées.
+### Personal Reflection
 
-3. **Manque de Détails** :
-   - Le papier pourrait bénéficier de plus de détails sur les théorèmes et les preuves pour clarifier certaines étapes et hypothèses. Une explication plus approfondie des concepts clés et des justifications théoriques renforcerait la compréhension des méthodes proposées.
-
-### Réflexion Personnelle
-
-En tant qu'étudiant international n'ayant pas d'expérience avec les articles de recherche avant mon semestre à NYCU, il est difficile de faire une analyse approfondie. Cependant, je pense que ces méthodes peuvent être une alternative puissante dans certains cas de RLHF, même si elles ne permettent pas de répondre à tous les défis du RLHF. Si j'étais l'auteur, je concevrais quelque chose de similaire, tout en cherchant à simplifier davantage les hypothèses et à explorer des méthodes pour estimer empiriquement la fonction de lien $\sigma$. Cela pourrait rendre les approches plus robustes et applicables dans une plus grande variété de contextes.
+As an international student with no experience with research papers before my semester at NYCU, it is difficult to provide an in-depth analysis. However, I believe these methods can be a powerful alternative in some RLHF cases, even though they do not address all RLHF challenges. If I were the author, I would design something similar, while seeking to further simplify the assumptions and explore methods to empirically estimate the link function $\sigma$. This could make the approaches more robust and applicable in a wider variety of contexts.
 
 ## Conclusion
 
-### Résumé des Résultats
+### Summary of Results
 
-Le papier démontre que RLHF peut être réduit à des problèmes de RL standard, simplifiant ainsi l'intégration des préférences humaines dans les algorithmes de RL. Les contributions principales incluent :
+The paper demonstrates that RLHF can be reduced to standard RL problems, simplifying the integration of human preferences into RL algorithms. The main contributions include:
 
-- **Approches de Réduction** : Conversion de RLHF en problèmes de RL standard ou de jeux de Markov factorisés et indépendants.
-- **Algorithmes Efficaces** : Introduction de P2R et P-OMLE.
-- **Garanties Théoriques** : Preuves de convergence et de performance.
+- **Reduction Approaches**: Converting RLHF into standard RL problems or factorized independent Markov games.
+- **Effective Algorithms**: Introduction of P2R and P-OMLE.
+- **Theoretical Guarantees**: Proofs of convergence and performance.
 
-### Implications et Applications
+### Implications and Applications
 
-Les méthodes proposées sont applicables à divers contextes de RL, tels que la robotique, les jeux, et le fine-tuning des modèles de langage, offrant des solutions pratiques et robustes pour intégrer les préférences humaines.
+The proposed methods are applicable to various RL contexts, such as robotics, games, and fine-tuning language models, offering practical and robust solutions for integrating human preferences.
 
-### Pour finir ...
+### Final Thoughts
 
-En conclusion, les résultats de ce papier montrent que RLHF n'est pas intrinsèquement plus complexe que le RL standard, ouvrant de nouvelles perspectives pour l'application de RLHF dans divers domaines. En intégrant les préférences humaines de manière efficace, ces méthodes offrent des solutions pratiques pour aligner les actions des agents avec les valeurs et attentes humaines.
+In conclusion, the results of this paper show that RLHF is not inherently more complex than standard RL, opening up new perspectives for the application of RLHF in various fields. By effectively integrating human preferences, these methods offer practical solutions for aligning agent actions with human values and expectations.
 
 ![meme_RLHF](https://hackmd.io/_uploads/rJlwrhOXR.jpg)
 
 ## References
 
-1. Yuanhao Wang, Qinghua Liu, Chi Jin. "Is RLHF More Difficult than Standard RL? A Theoretical Perspective." 
+1. Yuanhao Wang, Qinghua Liu, Chi Jin. "Is RLHF More Difficult than Standard RL? A Theoretical Perspective."
 2. Qinghua Liu, Praneeth Netrapalli, Csaba Szepesvári, Chi Jin. "Optimistic MLE—A Generic Model-based Algorithm for Partially Observable Sequential Decision Making."
 3. Huyen Chip. "Reinforcement Learning from Human Feedback." [Huyen Chip Blog](https://huyenchip.com/2023/05/02/rlhf.html). May 2, 2023.
-
